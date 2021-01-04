@@ -1,0 +1,148 @@
+
+
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="ac729844-667a-4127-8c58-ef612ef85ba0" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="4fb58ee9-a879-4209-8238-470551ef39cc" >
+		<db:my-sql-connection host="localhost" port="3308" user="root" database="craftOnLineShopping" />
+	</db:config>
+	<db:config name="Database_Config1" doc:name="Database Config" doc:id="3a5d2900-2a0f-46ac-9f34-f61000456b1d" >
+		<db:my-sql-connection host="localhost" port="3308" user="root" database="craftLocalDB" />
+	</db:config>
+	<flow name="databaseexFlow" doc:id="5c370393-8a0e-4ccc-9623-0ef17f45a541" >
+		<http:listener doc:name="Listener" doc:id="0499f03c-efae-48c5-a0d7-0f6807a11795" config-ref="HTTP_Listener_config" path="/q1"/>
+		<db:select doc:id="9866da47-7147-4a21-b53a-fe6f7ec4e98d" config-ref="Database_Config">
+			<db:sql ><![CDATA[select *
+from product]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="68912c7f-7311-4c47-b6f2-ac7bf5a8b666" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+payload filter $.productPrice>5000 map {
+	productname: $.productName,
+	producturl: $.productURL,
+	productprice: $.productPrice
+	
+	
+	}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<db:bulk-insert doc:name="Bulk insert" doc:id="25936595-eee7-4ffb-ba67-379ac6b41d57" config-ref="Database_Config1">
+			<db:sql ><![CDATA[insert into product(productname, producturl, productprice)
+ values(:productname, :producturl, :productprice);]]></db:sql>
+		</db:bulk-insert>
+		<ee:transform doc:name="Transform Message" doc:id="a2a08f19-626a-4b8e-a9ab-61b80fe6197a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+{
+	message: "inserted"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="databaseexFlow1" doc:id="f398b5e9-47c7-48e6-a71c-d07cef3643aa" >
+		<http:listener doc:name="Listener" doc:id="c49af1b9-b0ef-4d87-b1c8-371c0351e821" config-ref="HTTP_Listener_config" path="/q2"/>
+		<choice doc:name="Choice" doc:id="8ec6a7cb-c733-4d61-b449-54deec34682d" >
+			<when expression="#[attributes.queryParams.name=='product']">
+				<db:select doc:name="Select" doc:id="c917a678-e1d6-433e-a21c-44a20c43d17e" config-ref="Database_Config">
+			<db:sql><![CDATA[select * 
+from product]]></db:sql>
+		</db:select>
+				<ee:transform doc:name="Transform Message" doc:id="fbea3906-4ea4-4c16-b8c3-0593c918cfe7" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<when expression="#[attributes.queryParams.name=='users']">
+				<db:select doc:name="Select" doc:id="178ab0dc-a88a-440e-9ad7-957eed4d9f16" config-ref="Database_Config">
+					<db:sql ><![CDATA[select *
+from users]]></db:sql>
+				</db:select>
+				<ee:transform doc:name="Transform Message" doc:id="4012b8a3-2e0f-4d20-bcec-22b4ce07ed8a" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<set-payload value="no database found" doc:name="Set Payload" doc:id="e10bf57c-2aa8-4eca-948e-feb3e184b681" />
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="databaseexFlow2" doc:id="cae4d57e-d0e4-42f4-9e65-1f72370ca993" >
+		<http:listener doc:name="Listener" doc:id="09ac7595-3d81-4525-919e-be0c17412e76" config-ref="HTTP_Listener_config" path="/q3"/>
+		<db:select doc:name="Select" doc:id="eecef49f-c356-4599-b208-c80930ad64fc" config-ref="Database_Config">
+			<db:sql><![CDATA[select * 
+from orders where orderprice>5000]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="bb7a0b67-99d9-4e47-ad74-dfb0bfe83a96">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<file:write doc:name="Write" doc:id="ae2b8a1b-0809-4db0-a875-c90f28b2a740" path="C:\Users\mequa\Desktop\over5000.json" mode="CREATE_NEW" />
+		<db:select doc:name="Select" doc:id="87f151f1-83e6-4728-b384-074432360f75" config-ref="Database_Config">
+			<db:sql ><![CDATA[select *
+from orders where orderprice<=5000]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="ac44c79e-94b5-4480-a4fa-892c1c6a7970" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<file:write doc:name="Write" doc:id="d0e1effd-687a-4cb3-8d91-08b4fed32561" path="C:\Users\mequa\Desktop\under5000.json" mode="CREATE_NEW"/>
+	</flow>
+	<flow name="databaseexFlow3" doc:id="c0bbff07-e1e6-408c-b768-a90cd9852f99" >
+		<http:listener doc:name="Listener" doc:id="652b5ff3-4994-41ba-a119-30ff0f96f8d2" config-ref="HTTP_Listener_config" path="/q4"/>
+		<choice doc:name="Choice" doc:id="6c34bdab-b680-4c0d-8104-af56faddc439" >
+			<when expression="#[attributes.queryParams.num&lt;10]">
+				<choice doc:name="Choice" doc:id="dc5bd1e9-6790-4fc6-891b-86c9e53d26d0" >
+					<when expression="#[attributes.queryParams.num&lt;1]">
+						<set-payload value="num is less than 1" doc:name="Set Payload" doc:id="f91bdfbc-4684-4ab3-9545-106e5b29de2e" />
+					</when>
+					<when expression="#[attributes.queryParams.num&gt;1]">
+						<set-payload value="num is greater than 1" doc:name="Set Payload" doc:id="2d836aae-9b75-4606-a040-903c63e91807" />
+					</when>
+					<otherwise >
+						<set-payload value="num is  1" doc:name="Set Payload" doc:id="b54145b8-7d29-4401-943f-a27a55868d4b" />
+					</otherwise>
+				</choice>
+			</when>
+			<when expression="#[attributes.queryParams.num&gt;10]">
+				<set-payload value="num is greater than 10" doc:name="Set Payload" doc:id="d1d20a2c-4ce3-4f9e-8382-6c383ec03848" />
+			</when>
+			<otherwise >
+				<set-payload value="num is 10" doc:name="Set Payload" doc:id="9f248b1c-907b-4cd0-a086-a23bb754aa10" />
+			</otherwise>
+		</choice>
+	</flow>
+</mule>
